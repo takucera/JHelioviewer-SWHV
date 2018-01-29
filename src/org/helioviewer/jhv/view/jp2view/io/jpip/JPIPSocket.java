@@ -9,6 +9,8 @@ import java.util.zip.GZIPInputStream;
 
 import org.helioviewer.jhv.JHVGlobals;
 import org.helioviewer.jhv.base.Regex;
+import org.helioviewer.jhv.time.JHVDate;
+import org.helioviewer.jhv.view.jp2view.JP2View;
 import org.helioviewer.jhv.view.jp2view.io.ChunkedInputStream;
 import org.helioviewer.jhv.view.jp2view.io.FixedSizedInputStream;
 import org.helioviewer.jhv.view.jp2view.io.TransferInputStream;
@@ -30,12 +32,12 @@ public class JPIPSocket extends HTTPSocket {
 
     private static final String[] cnewParams = { "cid", "transport", "host", "path", "port", "auxport" };
 
-    public JPIPSocket(URI uri, JPIPCache cache) throws IOException {
+    public JPIPSocket(URI uri, JPIPCache cache, JP2View v, int level) throws IOException {
         super(uri);
 
         jpipPath = uri.getPath();
 
-        JPIPResponse res = send(JPIPQuery.create(512, "cnew", "http", "type", "jpp-stream", "tid", "0"), cache); // deliberately short
+        JPIPResponse res = send(JPIPQuery.create(512, "cnew", "http", "type", "jpp-stream", "tid", "0"), cache, v, level); // deliberately short
         String cnew = res.getCNew();
         if (cnew == null)
             throw new IOException("The header 'JPIP-cnew' was not sent by the server");
@@ -63,7 +65,7 @@ public class JPIPSocket extends HTTPSocket {
 
         try {
             if (jpipChannelID != null) {
-                send(JPIPQuery.create(0, "cclose", jpipChannelID), null);
+                send(JPIPQuery.create(0, "cclose", jpipChannelID), null, null, 0);
             }
         } catch (IOException ignore) {
             // no problem, server may have closed the socket
@@ -72,7 +74,7 @@ public class JPIPSocket extends HTTPSocket {
         }
     }
 
-    public JPIPResponse send(String queryStr, JPIPCache cache) throws IOException {
+    public JPIPResponse send(String queryStr, JPIPCache cache, JP2View v, int level) throws IOException {
         // Add a necessary JPIP request field
         if (jpipChannelID != null && !queryStr.contains("cid=") && !queryStr.contains("cclose"))
             queryStr += "&cid=" + jpipChannelID;
@@ -133,7 +135,7 @@ public class JPIPSocket extends HTTPSocket {
 
         JPIPResponse jpipRes = new JPIPResponse(res.getHeader("JPIP-cnew"));
         try (InputStream in = input) {
-            jpipRes.readSegments(in, cache);
+            jpipRes.readSegments(in, cache, v, level);
         }
 
         if ("close".equals(res.getHeader("Connection"))) {

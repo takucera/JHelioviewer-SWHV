@@ -2,6 +2,7 @@ package org.helioviewer.jhv.view.jp2view;
 
 import java.io.IOException;
 
+
 import org.helioviewer.jhv.gui.UITimer;
 import org.helioviewer.jhv.log.Log;
 import org.helioviewer.jhv.view.jp2view.cache.CacheStatus;
@@ -12,6 +13,8 @@ import org.helioviewer.jhv.view.jp2view.io.jpip.JPIPQuery;
 import org.helioviewer.jhv.view.jp2view.io.jpip.JPIPResponse;
 import org.helioviewer.jhv.view.jp2view.io.jpip.JPIPSocket;
 import org.helioviewer.jhv.view.jp2view.kakadu.JHV_Kdu_cache;
+
+import kdu_jni.KduException;
 
 class J2KReader implements Runnable {
 
@@ -111,7 +114,7 @@ class J2KReader implements Runnable {
             try {
                 if (socket.isClosed()) {
                     // System.out.println(">>> reconnect");
-                    socket = new JPIPSocket(viewRef.getURI(), cacheRef);
+                    socket = new JPIPSocket(viewRef.getURI(), cacheRef, viewRef, -1);
                 }
 
                 int frame = params.frame;
@@ -152,11 +155,13 @@ class J2KReader implements Runnable {
                         currentStep++;
                         continue;
                     }
-
                     // receive and add data to cache
-                    JPIPResponse res = socket.send(stepQuerys[currentStep], cacheRef);
+                    JPIPResponse res = null;
+                    if(!cacheRef.addCachedData(viewRef, level, currentStep)){                
+                        res = socket.send(stepQuerys[currentStep], cacheRef, viewRef, level);
+                    }
                     // react if query complete
-                    if (res.isResponseComplete()) {
+                    if (res == null|| res.isResponseComplete()) {
                         // mark query as complete
                         completeSteps++;
                         stepQuerys[currentStep] = null;
@@ -164,10 +169,12 @@ class J2KReader implements Runnable {
                         // tell the cache status
                         if (singleFrame) {
                             cacheStatusRef.setFrameComplete(frame, level);
+                            
                             viewRef.signalRenderFromReader(params); // refresh current image
                         } else {
                             for (int j = currentStep * JPIPConstants.MAX_REQ_LAYERS; j < Math.min((currentStep + 1) * JPIPConstants.MAX_REQ_LAYERS, numFrames); j++) {
                                 cacheStatusRef.setFrameComplete(j, level);
+                                cacheRef.setComplete(viewRef,level, j);
                             }
                         }
                     } else {
@@ -207,7 +214,7 @@ class J2KReader implements Runnable {
                     params.priority = false;
                     readerSignal.signal(params);
                 }
-             } catch (IOException e) {
+             } catch (IOException | KduException e) {
                 // e.printStackTrace();
                 try {
                     socket.close();

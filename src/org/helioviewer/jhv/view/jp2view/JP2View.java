@@ -107,25 +107,25 @@ public class JP2View extends AbstractView {
     private void initRemote(JHV_Kdu_cache cache) throws JHV_KduException {
         try {
             // Connect to the JPIP server and add the necessary initial data (the main header as well as the metadata) to cache
-            socket = new JPIPSocket(uri, cache);
+            socket = new JPIPSocket(uri, cache, this, -1);
 
             JPIPResponse res;
             String req = JPIPQuery.create(JPIPConstants.META_REQUEST_LEN, "stream", "0", "metareq", "[*]!!");
             do {
-                res = socket.send(req, cache);
+                res = socket.send(req, cache, this, -1);
             } while (!res.isResponseComplete());
 
             if (!cache.isDataBinCompleted(JPIPDatabinClass.MAIN_HEADER_DATABIN, 0, 0)) {
                 req = JPIPQuery.create(JPIPConstants.MIN_REQUEST_LEN, "stream", "0");
                 do {
-                    res = socket.send(req, cache);
+                    res = socket.send(req, cache, this, -1);
                 } while (!res.isResponseComplete() && !cache.isDataBinCompleted(JPIPDatabinClass.MAIN_HEADER_DATABIN, 0, 0));
             }
 
             // prime first image
             req = JPIPQuery.create(JPIPConstants.MAX_REQUEST_LEN, "context", "jpxl<0-0>", "fsiz", "64,64,closest", "rsiz", "64,64", "roff", "0,0");
             do {
-                res = socket.send(req, cache);
+                res = socket.send(req, cache, this, -1);
             } while (!res.isResponseComplete());
         } catch (IOException e) {
             initCloseSocket();

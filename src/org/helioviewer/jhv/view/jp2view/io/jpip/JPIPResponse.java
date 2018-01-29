@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ProtocolException;
 
+import org.helioviewer.jhv.time.JHVDate;
+import org.helioviewer.jhv.view.jp2view.JP2View;
+
 /**
  * A response to a JPIPRequest, encapsulates the JPIPDataSegments
  *
@@ -148,13 +151,13 @@ public class JPIPResponse {
         return seg;
     }
 
-    public void readSegments(InputStream in, JPIPCache cache) throws IOException {
+    public void readSegments(InputStream in, JPIPCache cache, JP2View v, int level) throws IOException {
         JPIPDataSegment seg;
         while ((seg = readSegment(in)) != null) {
             if (seg.isEOR)
                 status = seg.binID;
             else if (seg.isFinal || seg.length > 0) { // avoid pointless segments
-                cache.addJPIPDataSegment(seg);
+                cache.addJPIPDataSegment(seg, v, level);
             }
         }
     }
